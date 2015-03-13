@@ -1,44 +1,259 @@
-<!doctype html>
-<html>
- <head>
- <title>My First Web App</title>
- </head>
- <body>
- <h1>Hello, World!</h1>
- <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
- tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
- veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
- commodo consequat. Duis aute irure dolor in reprehenderit in voluptate
- velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint
- occaecat cupidatat non proident, sunt in culpa qui officia deserunt
- mollit anim id est laborum.</p>
- <h2>Hello, World!</h2>
- <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
- tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
- veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
- commodo consequat. Duis aute irure dolor in reprehenderit in voluptate
- velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint
- occaecat cupidatat non proident, sunt in culpa qui officia deserunt
- mollit anim id est laborum.</p>
- <h3>Hello, World!</h3>
- <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
- tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
- veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
- commodo consequat. Duis aute irure dolor in reprehenderit in voluptate
- velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint
- occaecat cupidatat non proident, sunt in culpa qui officia deserunt
- mollit anim id est laborum.</p>
- <p>Here is a <a href="http://www.google.com">link</a> to Google!</p>
-Hello, HTML! | 29
-www.it-ebooks.info
- <p>
- <a href="http://www.example.com">
- And this is a link that is a little longer
- </a>
- </p>
- <p>
- And here is a link to
- <a href="http://www.facebook.com">www.facebook.com</a>
- </p>
- </body>
-</html>
+@@ -132,6 +132,12 @@ def display_cop_names?
+           config['AllCops'] && config['AllCops']['DisplayCopNames']
+       end
+ 
++      def display_style_guide?
++        style_guide_url &&
++          (@options[:display_style_guide] ||
++            config['AllCops'] && config['AllCops']['DisplayStyleGuide'])
++      end
++
+       def message(_node = nil)
+         self.class::MSG
+       end
+ @@ -151,7 +157,7 @@ def add_offense(node, loc, message = nil, severity = nil)
+         severity = custom_severity || severity || default_severity
+ 
+         message ||= message(node)
+-        message = display_cop_names? ? "#{name}: #{message}" : message
++        message = annotate_message(message)
+ 
+         corrected = begin
+                       autocorrect(node) if autocorrect?
+ @@ -183,8 +189,19 @@ def relevant_file?(file)
+           !file_name_matches_any?(file, 'Exclude', false)
+       end
+ 
++      def style_guide_url
++        url = cop_config && cop_config['StyleGuide']
++        (url.nil? || url.empty?) ? nil : url
++      end
++
+       private
+ 
++      def annotate_message(message)
++        message = "#{name}: #{message}" if display_cop_names?
++        message = "#{message} (#{style_guide_url})" if display_style_guide?
++        message
++      end
++
+       def file_name_matches_any?(file, parameter, default_result)
+         patterns = cop_config && cop_config[parameter]
+         return default_result unless patterns
+View 92  lib/rubocop/options.rb
+ @@ -6,51 +6,52 @@ module RuboCop
+   # This module contains help texts for command line options.
+   module OptionsHelp
+     TEXT = {
+-      only:              'Run only the given cop(s).',
+-      only_guide_cops:  ['Run only cops for rules that link to a',
+-                         'style guide.'],
+-      except:            'Disable the given cop(s).',
+-      require:           'Require Ruby file.',
+-      config:            'Specify configuration file.',
+-      auto_gen_config:  ['Generate a configuration file acting as a',
+-                         'TODO list.'],
+-      force_exclusion:  ['Force excluding files specified in the',
+-                         'configuration `Exclude` even if they are',
+-                         'explicitly passed as arguments.'],
+-      format:           ['Choose an output formatter. This option',
+-                         'can be specified multiple times to enable',
+-                         'multiple formatters at the same time.',
+-                         '  [p]rogress (default)',
+-                         '  [s]imple',
+-                         '  [c]lang',
+-                         '  [d]isabled cops via inline comments',
+-                         '  [fu]ubar',
+-                         '  [e]macs',
+-                         '  [j]son',
+-                         '  [h]tml',
+-                         '  [fi]les',
+-                         '  [o]ffenses',
+-                         '  custom formatter class name'],
+-      out:              ['Write output to a file instead of STDOUT.',
+-                         'This option applies to the previously',
+-                         'specified --format, or the default format',
+-                         'if no format is specified.'],
+-      fail_level:       ['Minimum severity (A/R/C/W/E/F) for exit',
+-                         'with error code.'],
+-      show_cops:        ['Shows the given cops, or all cops by',
+-                         'default, and their configurations for the',
+-                         'current directory.'],
+-      fail_fast:        ['Inspect files in order of modification',
+-                         'time and stop after the first file',
+-                         'containing offenses.'],
+-      debug:             'Display debug info.',
+-      display_cop_names: 'Display cop names in offense messages.',
+-      rails:             'Run extra Rails cops.',
+-      lint:              'Run only lint cops.',
+-      auto_correct:      'Auto-correct offenses.',
+-      no_color:          'Disable color output.',
+-      version:           'Display version.',
+-      verbose_version:   'Display verbose version.'
++      only:                 'Run only the given cop(s).',
++      only_guide_cops:     ['Run only cops for rules that link to a',
++                            'style guide.'],
++      except:               'Disable the given cop(s).',
++      require:              'Require Ruby file.',
++      config:               'Specify configuration file.',
++      auto_gen_config:     ['Generate a configuration file acting as a',
++                            'TODO list.'],
++      force_exclusion:     ['Force excluding files specified in the',
++                            'configuration `Exclude` even if they are',
++                            'explicitly passed as arguments.'],
++      format:              ['Choose an output formatter. This option',
++                            'can be specified multiple times to enable',
++                            'multiple formatters at the same time.',
++                            '  [p]rogress (default)',
++                            '  [s]imple',
++                            '  [c]lang',
++                            '  [d]isabled cops via inline comments',
++                            '  [fu]ubar',
++                            '  [e]macs',
++                            '  [j]son',
++                            '  [h]tml',
++                            '  [fi]les',
++                            '  [o]ffenses',
++                            '  custom formatter class name'],
++      out:                 ['Write output to a file instead of STDOUT.',
++                            'This option applies to the previously',
++                            'specified --format, or the default format',
++                            'if no format is specified.'],
++      fail_level:          ['Minimum severity (A/R/C/W/E/F) for exit',
++                            'with error code.'],
++      show_cops:           ['Shows the given cops, or all cops by',
++                            'default, and their configurations for the',
++                            'current directory.'],
++      fail_fast:           ['Inspect files in order of modification',
++                            'time and stop after the first file',
++                            'containing offenses.'],
++      debug:                'Display debug info.',
++      display_cop_names:    'Display cop names in offense messages.',
++      display_style_guide:  'Display style guide URLs in offense messages.',
++      rails:                'Run extra Rails cops.',
++      lint:                 'Run only lint cops.',
++      auto_correct:         'Auto-correct offenses.',
++      no_color:             'Disable color output.',
++      version:              'Display version.',
++      verbose_version:      'Display verbose version.'
+     }
+   end
+ 
+ @@ -165,6 +166,7 @@ def add_boolean_flags(opts)
+       option(opts, '-F', '--fail-fast')
+       option(opts, '-d', '--debug')
+       option(opts, '-D', '--display-cop-names')
++      option(opts, '-S', '--display-style-guide')
+       option(opts, '-R', '--rails')
+       option(opts, '-l', '--lint')
+       option(opts, '-a', '--auto-correct')
+View 53  spec/rubocop/cli_spec.rb
+ @@ -1183,12 +1183,14 @@ def abs(path)
+ 
+       it 'shows cop names' do
+         create_file('example1.rb', "\tputs 0")
++        file = abs('example1.rb')
++
+         expect(cli.run(['--format',
+                         'emacs',
+                         '--debug',
+                         'example1.rb'])).to eq(1)
+         expect($stdout.string.lines.to_a[-1])
+-          .to eq(["#{abs('example1.rb')}:1:1: C: Style/Tab: Tab detected.",
++          .to eq(["#{file}:1:1: C: Style/Tab: Tab detected.",
+                   ''].join("\n"))
+       end
+     end
+ @@ -1196,12 +1198,30 @@ def abs(path)
+     describe '-D/--display-cop-names' do
+       it 'shows cop names' do
+         create_file('example1.rb', "\tputs 0")
++        file = abs('example1.rb')
++
+         expect(cli.run(['--format',
+                         'emacs',
+-                        '--debug',
++                        '--display-cop-names',
++                        'example1.rb'])).to eq(1)
++        expect($stdout.string.lines.to_a[-1])
++          .to eq(["#{file}:1:1: C: Style/Tab: Tab detected.",
++                  ''].join("\n"))
++      end
++    end
++
++    describe '-S/--display-style-guide' do
++      it 'shows style guide entry' do
++        create_file('example1.rb', "\tputs 0")
++        file = abs('example1.rb')
++        url = 'https://github.com/bbatsov/ruby-style-guide#spaces-indentation'
++
++        expect(cli.run(['--format',
++                        'emacs',
++                        '--display-style-guide',
+                         'example1.rb'])).to eq(1)
+         expect($stdout.string.lines.to_a[-1])
+-          .to eq(["#{abs('example1.rb')}:1:1: C: Style/Tab: Tab detected.",
++          .to eq(["#{file}:1:1: C: Tab detected. (#{url})",
+                   ''].join("\n"))
+       end
+     end
+ @@ -2159,6 +2179,33 @@ def interrupt
+                 ''].join("\n"))
+     end
+ 
++    it 'displays style guide URLs if DisplayStyleGuide is true' do
++      source = ['# encoding: utf-8',
++                'x = 0 ',
++                'puts x']
++      create_file('example1.rb', source)
++
++      # DisplayCopNames: false inherited from config/default.yml
++      create_file('.rubocop.yml', [])
++
++      create_file('dir/example2.rb', source)
++      create_file('dir/.rubocop.yml', ['AllCops:',
++                                       '  DisplayStyleGuide: true'])
++
++      url = 'https://github.com/bbatsov/ruby-style-guide#no-trailing-whitespace'
++
++      expect(cli.run(%w(--format simple))).to eq(1)
++      expect($stdout.string)
++        .to eq(['== example1.rb ==',
++                'C:  2:  6: Trailing whitespace detected.',
++                '== dir/example2.rb ==',
++                'C:  2:  6: Trailing whitespace' \
++                " detected. (#{url})",
++                '',
++                '2 files inspected, 2 offenses detected',
++                ''].join("\n"))
++    end
++
+     it 'finds included files' do
+       create_file('file.rb', 'x=0') # Included by default
+       create_file('example', 'x=0')
+View 5  spec/rubocop/options_spec.rb
+ @@ -34,6 +34,7 @@ def abs(path)
+         rescue SystemExit # rubocop:disable Lint/HandleExceptions
+         end
+ 
++        # rubocop:disable Metrics/LineLength
+         expected_help = <<-END
+ Usage: rubocop [options] [file1, file2, ...]
+         --except [COP1,COP2,...]     Disable the given cop(s).
+ @@ -75,13 +76,15 @@ def abs(path)
+                                      containing offenses.
+     -d, --debug                      Display debug info.
+     -D, --display-cop-names          Display cop names in offense messages.
++    -S, --display-style-guide        Display style guide URLs in offense messages.
+     -R, --rails                      Run extra Rails cops.
+     -l, --lint                       Run only lint cops.
+     -a, --auto-correct               Auto-correct offenses.
+     -n, --no-color                   Disable color output.
+     -v, --version                    Display version.
+     -V, --verbose-version            Display verbose version.
+-      END
++        END
++        # rubocop:enable Metrics/LineLength
+ 
+         expect($stdout.string).to eq(expected_help)
+       end
